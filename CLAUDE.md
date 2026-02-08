@@ -4,24 +4,24 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Single-file interactive particle simulation built with vanilla HTML5 Canvas and JavaScript. No build tools, dependencies, or package manager — just open `particle-playground.html` in a browser.
+Single-file interactive particle simulation built with vanilla HTML5 Canvas and JavaScript. No build tools, dependencies, or package manager -- open `particle-playground.html` in a browser.
 
 ## Architecture
 
-Everything lives in `particle-playground.html` (~995 lines):
+Everything lives in `particle-playground.html` (~980 lines):
 
-- **CSS** (lines 7-191): Dark theme UI with CSS custom properties (`--accent`, `--secondary`) that change per color theme. Collapsible control panel with sliders, dropdowns, and toggle buttons.
-- **HTML** (lines 193-316): Canvas element + control panel with collapsible sections (Mode, Particles, Physics, Visuals, Actions).
-- **JavaScript** (lines 318-992): Organized into labeled sections:
+- **CSS** (lines ~7-190): Dark theme UI with CSS custom properties (`--accent`, `--secondary`) that change per color theme. Collapsible control panel with sliders, dropdowns, and toggle buttons.
+- **HTML** (lines ~190-310): Canvas element + control panel with collapsible sections (Mode, Particles, Physics, Visuals, Actions).
+- **JavaScript** (lines ~310-975): Organized into labeled sections:
 
 ### Key Sections
 
-- **CONFIGURATION** (lines 321-361): `THEMES` object (6 color themes), `MODES` array (8 modes), `config` object (all tunable settings), `state` object (runtime state).
-- **SPATIAL PARTITIONING** (lines 394-428): Grid-based spatial hash (`CELL_SIZE=100`) with `buildSpatialGrid()` and `getNearby()` — reduces O(n²) particle interactions to ~O(n).
-- **PARTICLE CLASS** (lines 432-706): Each particle has position, velocity, hue, life, mode, stage (for fireworks), and prevX/prevY (for trail shape). Mode physics are separate methods (`modeGravity`, `modeSwarm`, `modeFireworks`, etc.). Drawing supports 4 shapes (circle, square, star, trail) and themed colors.
-- **SPAWN LOGIC** (lines 729-757): Mode-specific spawning — explosion gets radial burst velocity, fireworks get rocket stage with upward thrust, others get random spread.
-- **ANIMATION LOOP** (lines 761-816): `requestAnimationFrame` loop with spatial grid rebuild each frame, FPS counter, and pause support.
-- **UI WIRING** (lines 865-976): `wireSlider()` and `wireToggle()` helpers connect DOM controls to `config` object. Keyboard shortcuts: Space=pause, C=clear, M=cycle mode, T=cycle theme.
+- **CONFIGURATION** (lines ~320-370): `THEMES` object (6 color themes), `MODES` array (8 modes), `config` object (all tunable settings), `state` object (runtime state).
+- **SPATIAL PARTITIONING** (lines ~390-430): Grid-based spatial hash (`CELL_SIZE=100`) with `buildSpatialGrid()` and `getNearby()`; reduces O(n^2) particle interactions to roughly O(n).
+- **PARTICLE CLASS** (lines ~430-705): Each particle has position, velocity, hue, life, mode, and stage (for fireworks). Mode physics are separate methods (`modeGravity`, `modeSwarm`, `modeFireworks`, etc.). Drawing supports 3 shapes (circle, square, star) and themed colors.
+- **SPAWN LOGIC** (lines ~710-745): Mode-specific spawning -- explosion gets radial burst velocity, fireworks get rocket stage with upward thrust, others get random spread.
+- **ANIMATION LOOP** (lines ~745-820): `requestAnimationFrame` loop with spatial grid rebuild each frame, FPS counter, and pause support.
+- **UI WIRING** (lines ~860-975): `wireSlider()` and `wireToggle()` helpers connect DOM controls to `config`. Keyboard shortcuts: Space=pause, C=clear, M=cycle mode, T=cycle theme.
 
 ### 8 Particle Modes
 
@@ -34,7 +34,7 @@ Everything lives in `particle-playground.html` (~995 lines):
 | Explosion | Radial burst from spawn point, gravity pulls down, fast fade |
 | Vortex | Spiral inward toward mouse, tangential force increases with proximity |
 | Flow Field | Pseudo-Perlin field via `sin(x)*cos(y)`, time-varying |
-| Fireworks | Two-stage: rocket ascends → explodes into spark children that fall |
+| Fireworks | Two-stage: rocket ascends -> explodes into spark children that fall |
 
 ### 6 Color Themes
 

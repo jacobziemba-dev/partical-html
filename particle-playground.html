@@ -350,7 +350,11 @@
         frameCount: 0,
         lastFpsTime: performance.now(),
         time: 0,
-        spatialGrid: {}
+        spatialGrid: {},
+        canvasWidth: 0,
+        canvasHeight: 0,
+        dpr: 1,
+        hasPointer: false
     };
 
     // ===== CANVAS SETUP =====
@@ -359,8 +363,19 @@
     const ctx = canvas.getContext('2d');
 
     function resize() {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
+        const dpr = window.devicePixelRatio || 1;
+        state.dpr = dpr;
+        state.canvasWidth = window.innerWidth;
+        state.canvasHeight = window.innerHeight;
+        canvas.width = Math.floor(state.canvasWidth * dpr);
+        canvas.height = Math.floor(state.canvasHeight * dpr);
+        canvas.style.width = state.canvasWidth + 'px';
+        canvas.style.height = state.canvasHeight + 'px';
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        if (!state.hasPointer) {
+            state.mouseX = state.canvasWidth / 2;
+            state.mouseY = state.canvasHeight / 2;
+        }
     }
     resize();
     window.addEventListener('resize', resize);
@@ -396,6 +411,7 @@
         const grid = {};
         for (let i = 0; i < particles.length; i++) {
             const p = particles[i];
+            p._gridIndex = i;
             const key = cellKey(p.x, p.y);
             if (!grid[key]) grid[key] = [];
             grid[key].push(p);
@@ -426,8 +442,8 @@
         constructor(x, y, mode, opts = {}) {
             this.x = x;
             this.y = y;
-            this.vx = opts.vx !== undefined ? opts.vx : (Math.random() - 0.5) * 4 * config.speedMult;
-            this.vy = opts.vy !== undefined ? opts.vy : (Math.random() - 0.5) * 4 * config.speedMult;
+            this.vx = opts.vx !== undefined ? opts.vx : (Math.random() - 0.5) * 4;
+            this.vy = opts.vy !== undefined ? opts.vy : (Math.random() - 0.5) * 4;
             this.radius = opts.radius || (Math.random() * (config.particleSize - 1) + 1);
             this.hue = opts.hue !== undefined ? opts.hue : Math.random() * 360;
             this.life = opts.life !== undefined ? opts.life : 1;
@@ -460,13 +476,13 @@
             this.vy *= config.damping;
 
             // Bounce off edges
-            if (this.x < 0 || this.x > canvas.width) {
+            if (this.x < 0 || this.x > state.canvasWidth) {
                 this.vx *= -0.8;
-                this.x = Math.max(0, Math.min(canvas.width, this.x));
+                this.x = Math.max(0, Math.min(state.canvasWidth, this.x));
             }
-            if (this.y < 0 || this.y > canvas.height) {
+            if (this.y < 0 || this.y > state.canvasHeight) {
                 this.vy *= -0.8;
-                this.y = Math.max(0, Math.min(canvas.height, this.y));
+                this.y = Math.max(0, Math.min(state.canvasHeight, this.y));
             }
 
             this.hue = (this.hue + 0.5) % 360;
@@ -507,7 +523,7 @@
         modeRepel(mx, my, str) {
             const dx = this.x - mx, dy = this.y - my;
             const d = Math.sqrt(dx * dx + dy * dy);
-            if (d < 150) {
+            if (d > 0.1 && d < 150) {
                 const force = (200 / (d + 1)) * str;
                 this.vx += (dx / d) * force * 0.1;
                 this.vy += (dy / d) * force * 0.1;
@@ -668,6 +684,7 @@
 
         drawConnection(other) {
             if (!config.showConnections) return;
+            if (other._gridIndex <= this._gridIndex) return;
             const dx = other.x - this.x, dy = other.y - this.y;
             const d = Math.sqrt(dx * dx + dy * dy);
             const cd = config.connectionDist;
@@ -687,19 +704,19 @@
     // ===== BACKGROUND RENDERING =====
 
     function drawBackground() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.clearRect(0, 0, state.canvasWidth, state.canvasHeight);
         const tint = THEMES[config.theme].bgTint;
         ctx.fillStyle = `rgb(${tint[0]}, ${tint[1]}, ${tint[2]})`;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillRect(0, 0, state.canvasWidth, state.canvasHeight);
 
         if (config.showGrid) {
             ctx.strokeStyle = getAccent() + '18'; // low alpha hex
             ctx.lineWidth = 0.5;
-            for (let x = 0; x < canvas.width; x += 50) {
-                ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+            for (let x = 0; x < state.canvasWidth; x += 50) {
+                ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, state.canvasHeight); ctx.stroke();
             }
-            for (let y = 0; y < canvas.height; y += 50) {
-                ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+            for (let y = 0; y < state.canvasHeight; y += 50) {
+                ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(state.canvasWidth, y); ctx.stroke();
             }
         }
     }
@@ -798,11 +815,13 @@
     // ===== EVENT HANDLERS =====
 
     canvas.addEventListener('mousemove', (e) => {
+        state.hasPointer = true;
         state.mouseX = e.clientX;
         state.mouseY = e.clientY;
     });
 
     canvas.addEventListener('mousedown', (e) => {
+        state.hasPointer = true;
         state.mouseDown = true;
         state.mouseX = e.clientX;
         state.mouseY = e.clientY;
@@ -810,26 +829,35 @@
     });
 
     canvas.addEventListener('mouseup', () => { state.mouseDown = false; });
+    window.addEventListener('mouseup', () => { state.mouseDown = false; });
 
     // Touch support
+    const touchOptions = { passive: false };
     canvas.addEventListener('touchstart', (e) => {
         e.preventDefault();
+        state.hasPointer = true;
         state.mouseDown = true;
         state.mouseX = e.touches[0].clientX;
         state.mouseY = e.touches[0].clientY;
         spawnParticles(state.mouseX, state.mouseY, 5);
-    });
+    }, touchOptions);
 
     canvas.addEventListener('touchmove', (e) => {
         e.preventDefault();
+        state.hasPointer = true;
         state.mouseX = e.touches[0].clientX;
         state.mouseY = e.touches[0].clientY;
-    });
+    }, touchOptions);
 
     canvas.addEventListener('touchend', (e) => {
         e.preventDefault();
         state.mouseDown = false;
-    });
+    }, touchOptions);
+
+    canvas.addEventListener('touchcancel', (e) => {
+        e.preventDefault();
+        state.mouseDown = false;
+    }, touchOptions);
 
     // Continuous spawn
     setInterval(() => {
@@ -849,6 +877,15 @@
         const secondary = getSecondary();
         document.documentElement.style.setProperty('--accent', accent);
         document.documentElement.style.setProperty('--secondary', secondary);
+    }
+
+    function setMode(newMode) {
+        config.mode = newMode;
+        for (let i = 0; i < state.particles.length; i++) {
+            state.particles[i].mode = newMode;
+        }
+        const modeSelect = document.getElementById('modeSelect');
+        if (modeSelect.value !== newMode) modeSelect.value = newMode;
     }
 
     // Collapsible sections
@@ -885,7 +922,7 @@
     wireSlider('glowSlider', 'glowVal', 'glowIntensity');
 
     // Dropdowns
-    document.getElementById('modeSelect').addEventListener('change', (e) => { config.mode = e.target.value; });
+    document.getElementById('modeSelect').addEventListener('change', (e) => { setMode(e.target.value); });
     document.getElementById('themeSelect').addEventListener('change', (e) => { config.theme = e.target.value; applyThemeToUI(); });
     document.getElementById('shapeSelect').addEventListener('change', (e) => { config.shape = e.target.value; });
 
@@ -909,8 +946,7 @@
     document.getElementById('randomBtn').addEventListener('click', () => {
         // Random mode
         const modeIdx = Math.floor(Math.random() * MODES.length);
-        config.mode = MODES[modeIdx];
-        document.getElementById('modeSelect').value = config.mode;
+        setMode(MODES[modeIdx]);
 
         // Random theme
         const themeKeys = Object.keys(THEMES);
@@ -939,8 +975,7 @@
                 break;
             case 'm': {
                 const idx = (MODES.indexOf(config.mode) + 1) % MODES.length;
-                config.mode = MODES[idx];
-                document.getElementById('modeSelect').value = config.mode;
+                setMode(MODES[idx]);
                 break;
             }
             case 't': {
@@ -961,8 +996,8 @@
     // Seed with initial particles
     for (let i = 0; i < 50; i++) {
         state.particles.push(new Particle(
-            Math.random() * canvas.width,
-            Math.random() * canvas.height,
+            Math.random() * state.canvasWidth,
+            Math.random() * state.canvasHeight,
             config.mode
         ));
     }
