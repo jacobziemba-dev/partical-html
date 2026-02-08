@@ -331,7 +331,6 @@
         gravityStrength: 0.3,
         damping: 0.98,
         interactionRange: 100,
-        trailAlpha: 0.1,
         glowIntensity: 10,
         showConnections: true,
         showGrid: false,
@@ -688,8 +687,9 @@
     // ===== BACKGROUND RENDERING =====
 
     function drawBackground() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
         const tint = THEMES[config.theme].bgTint;
-        ctx.fillStyle = `rgba(${tint[0]}, ${tint[1]}, ${tint[2]}, ${config.trailAlpha})`;
+        ctx.fillStyle = `rgb(${tint[0]}, ${tint[1]}, ${tint[2]})`;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
         if (config.showGrid) {
