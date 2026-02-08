@@ -8,15 +8,34 @@ Single-file interactive particle simulation built with vanilla HTML5 Canvas and 
 
 ## Architecture
 
-Everything lives in `particle-playground.html`:
+Everything lives in `particle-playground.html` (~995 lines):
 
-- **CSS** (lines 7-74): Inline styles for dark theme UI, control panel overlay, and neon-green accent color scheme
-- **HTML** (lines 76-96): Canvas element + absolute-positioned control panel with mode toggle, clear button, and particle count
-- **JavaScript** (lines 98-334): All logic in a single `<script>` block
+- **CSS** (lines 7-191): Dark theme UI with CSS custom properties (`--accent`, `--secondary`) that change per color theme. Collapsible control panel with sliders, dropdowns, and toggle buttons.
+- **HTML** (lines 193-316): Canvas element + control panel with collapsible sections (Mode, Particles, Physics, Visuals, Actions).
+- **JavaScript** (lines 318-992): Organized into labeled sections:
 
-### Key Components
+### Key Sections
 
-- **`Particle` class**: Each particle has position, velocity, radius, HSL hue, life (opacity that fades over time), mode, and mass. Handles its own physics (`update`), rendering (`draw`), and connection lines to nearby particles (`drawConnection`).
-- **Three interaction modes** (`gravity`, `repel`, `orbit`): Determine how particles respond to the mouse cursor and each other. Cycled via the "Change Mode" button.
-- **Animation loop** (`animate`): Uses `requestAnimationFrame`. Applies a semi-transparent fill each frame for trail effects. Removes dead particles (life <= 0). Draws connection lines between particles within 80px.
-- **Particle cap**: 500 max particles, enforced during continuous spawn (mouse hold).
+- **CONFIGURATION** (lines 321-361): `THEMES` object (6 color themes), `MODES` array (8 modes), `config` object (all tunable settings), `state` object (runtime state).
+- **SPATIAL PARTITIONING** (lines 394-428): Grid-based spatial hash (`CELL_SIZE=100`) with `buildSpatialGrid()` and `getNearby()` — reduces O(n²) particle interactions to ~O(n).
+- **PARTICLE CLASS** (lines 432-706): Each particle has position, velocity, hue, life, mode, stage (for fireworks), and prevX/prevY (for trail shape). Mode physics are separate methods (`modeGravity`, `modeSwarm`, `modeFireworks`, etc.). Drawing supports 4 shapes (circle, square, star, trail) and themed colors.
+- **SPAWN LOGIC** (lines 729-757): Mode-specific spawning — explosion gets radial burst velocity, fireworks get rocket stage with upward thrust, others get random spread.
+- **ANIMATION LOOP** (lines 761-816): `requestAnimationFrame` loop with spatial grid rebuild each frame, FPS counter, and pause support.
+- **UI WIRING** (lines 865-976): `wireSlider()` and `wireToggle()` helpers connect DOM controls to `config` object. Keyboard shortcuts: Space=pause, C=clear, M=cycle mode, T=cycle theme.
+
+### 8 Particle Modes
+
+| Mode | Physics |
+|------|---------|
+| Gravity | Mouse attraction (when held) + inter-particle attraction via spatial grid |
+| Repel | Particles flee from mouse, inverse-distance force |
+| Orbit | Tangential + centripetal forces around mouse cursor |
+| Swarm | Boids algorithm: separation, alignment, cohesion |
+| Explosion | Radial burst from spawn point, gravity pulls down, fast fade |
+| Vortex | Spiral inward toward mouse, tangential force increases with proximity |
+| Flow Field | Pseudo-Perlin field via `sin(x)*cos(y)`, time-varying |
+| Fireworks | Two-stage: rocket ascends → explodes into spark children that fall |
+
+### 6 Color Themes
+
+Each theme defines `hueRange`, `bg`, `accent`, `secondary`, and `bgTint`. The `themeHue()` function maps particle hues into the theme's range. Theme changes also update CSS custom properties for UI accent colors.
