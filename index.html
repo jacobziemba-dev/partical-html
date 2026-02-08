@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Particle Playground</title>
+	<style>
+		* {
+			margin: 0;
+			padding: 0;
+			overflow: hidden;
+			box-sizing: border-box;
+		}
+
+		body {
+			background: #0a0a0a;
+			font-family: 'Courier New', monospace;
+		}
+
+		canvas {
+			display: block;
+			cursor: crosshair;
+		}
+
+		.controls {
+			position: absolute;
+			top: 20px;
+			left: 20px;
+			color: var(--accent, #00ff88);
+			background: rgba(0, 0, 0, 0.8);
+			padding: 15px;
+			border-radius: 8px;
+			border: 1px solid var(--accent, #00ff88);
+			font-size: 11px;
+			user-select: none;
+			width: 280px;
+			max-height: calc(100vh - 40px);
+			overflow-y: auto;
+		}
+
+		.controls::-webkit-scrollbar { width: 4px; }
+		.controls::-webkit-scrollbar-thumb { background: var(--accent, #00ff88); border-radius: 2px; }
+
+		.title {
+			font-size: 14px;
+			font-weight: bold;
+			margin-bottom: 10px;
+			text-align: center;
+		}
+
+		.section-header {
+			cursor: pointer;
+			padding: 6px 0;
+			font-weight: bold;
+			font-size: 11px;
+			border-top: 1px solid rgba(255,255,255,0.1);
+			margin-top: 4px;
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+		}
+
+		.section-header:first-of-type { border-top: none; margin-top: 0; }
+		.section-header:hover { opacity: 0.8; }
+
+		.section-body {
+			padding: 6px 0 4px 0;
+		}
+
+		.section-body.collapsed {
+			display: none;
+		}
+
+		.control-row {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			margin: 5px 0;
+			gap: 8px;
+		}
+
+		.control-row label {
+			flex-shrink: 0;
+			min-width: 70px;
+		}
+
+		select, input[type="range"] {
+			flex: 1;
+			min-width: 0;
+		}
+
+		select {
+			background: rgba(0,0,0,0.6);
+			color: var(--accent, #00ff88);
+			border: 1px solid var(--accent, #00ff88);
+			padding: 3px 4px;
+			border-radius: 4px;
+			font-family: 'Courier New', monospace;
+			font-size: 10px;
+			cursor: pointer;
+		}
+
+		input[type="range"] {
+			-webkit-appearance: none;
+			height: 4px;
+			background: rgba(255,255,255,0.15);
+			border-radius: 2px;
+			outline: none;
+		}
+
+		input[type="range"]::-webkit-slider-thumb {
+			-webkit-appearance: none;
+			width: 12px;
+			height: 12px;
+			background: var(--accent, #00ff88);
+			border-radius: 50%;
+			cursor: pointer;
+		}
+
+		.value-display {
+			min-width: 28px;
+			text-align: right;
+			font-size: 10px;
+			opacity: 0.7;
+		}
+
+		button {
+			background: var(--accent, #00ff88);
+			color: #0a0a0a;
+			border: none;
+			padding: 6px 12px;
+			border-radius: 4px;
+			cursor: pointer;
+			font-family: 'Courier New', monospace;
+			font-weight: bold;
+			font-size: 10px;
+			transition: all 0.2s;
+		}
+
+		button:hover {
+			opacity: 0.85;
+			transform: scale(1.05);
+		}
+
+		button:active {
+			transform: scale(0.95);
+		}
+
+		.toggle-btn {
+			padding: 3px 8px;
+			font-size: 9px;
+			border-radius: 3px;
+		}
+
+		.toggle-btn.off {
+			background: transparent;
+			color: var(--accent, #00ff88);
+			border: 1px solid var(--accent, #00ff88);
+		}
+
+		.stats-bar {
+			display: flex;
+			justify-content: space-between;
+			font-size: 10px;
+			opacity: 0.6;
+			margin-top: 8px;
+			padding-top: 6px;
+			border-top: 1px solid rgba(255,255,255,0.1);
+		}
+
+		.mode-indicator {
+			color: var(--secondary, #ff00ff);
+			font-weight: bold;
+			text-shadow: 0 0 10px var(--secondary, #ff00ff);
+		}
+
+		.btn-row {
+			display: flex;
+			gap: 6px;
+			margin-top: 4px;
+		}
+
+		.btn-row button { flex: 1; }
+
+		.shortcut-hint {
+			font-size: 9px;
+			opacity: 0.4;
+			margin-top: 8px;
+			text-align: center;
+		}
+	</style>
+</head>
+<body>
+	<canvas id="canvas"></canvas>
+
+	<div class="controls" id="controlPanel">
+		<div class="title">&#9889; PARTICLE PLAYGROUND &#9889;</div>
+
+		<!-- Mode Section -->
+		<div class="section-header" data-section="mode">
+			<span>&#9654; MODE</span>
+			<span>Particles: <span id="countText">0</span></span>
+		</div>
+		<div class="section-body" id="section-mode">
+			<div class="control-row">
+				<label>Mode</label>
+				<select id="modeSelect">
+					<option value="gravity">Gravity</option>
+					<option value="repel">Repel</option>
+					<option value="orbit">Orbit</option>
+					<option value="swarm">Swarm</option>
+					<option value="explosion">Explosion</option>
+					<option value="vortex">Vortex</option>
+					<option value="flowfield">Flow Field</option>
+					<option value="fireworks">Fireworks</option>
+				</select>
+			</div>
+		</div>
+
+		<!-- Particle Settings -->
+		<div class="section-header" data-section="particles">&#9654; PARTICLES</div>
+		<div class="section-body" id="section-particles">
+			<div class="control-row">
+				<label>Size</label>
+				<input type="range" id="sizeSlider" min="1" max="8" step="0.5" value="3">
+				<span class="value-display" id="sizeVal">3</span>
+			</div>
+			<div class="control-row">
+				<label>Speed</label>
+				<input type="range" id="speedSlider" min="0.5" max="3" step="0.1" value="1">
+				<span class="value-display" id="speedVal">1x</span>
+			</div>
+			<div class="control-row">
+				<label>Spawn Rate</label>
+				<input type="range" id="spawnSlider" min="1" max="10" step="1" value="3">
+				<span class="value-display" id="spawnVal">3</span>
+			</div>
+		</div>
+
+		<!-- Physics -->
+		<div class="section-header" data-section="physics">&#9654; PHYSICS</div>
+		<div class="section-body" id="section-physics">
+			<div class="control-row">
+				<label>Gravity</label>
+				<input type="range" id="gravitySlider" min="0" max="2" step="0.05" value="0.3">
+				<span class="value-display" id="gravityVal">0.3</span>
+			</div>
+			<div class="control-row">
+				<label>Damping</label>
+				<input type="range" id="dampingSlider" min="0.90" max="0.99" step="0.005" value="0.98">
+				<span class="value-display" id="dampingVal">0.98</span>
+			</div>
+			<div class="control-row">
+				<label>Range</label>
+				<input type="range" id="rangeSlider" min="50" max="200" step="10" value="100">
+				<span class="value-display" id="rangeVal">100</span>
+			</div>
+		</div>
+
+		<!-- Visuals -->
+		<div class="section-header" data-section="visuals">&#9654; VISUALS</div>
+		<div class="section-body" id="section-visuals">
+			<div class="control-row">
+				<label>Theme</label>
+				<select id="themeSelect">
+					<option value="cyberpunk">Cyberpunk</option>
+					<option value="fire">Fire</option>
+					<option value="ocean">Ocean</option>
+					<option value="aurora">Aurora</option>
+					<option value="rainbow">Rainbow</option>
+					<option value="mono">Monochrome</option>
+				</select>
+			</div>
+			<div class="control-row">
+				<label>Shape</label>
+				<select id="shapeSelect">
+					<option value="circle">Circle</option>
+					<option value="square">Square</option>
+					<option value="star">Star</option>
+				</select>
+			</div>
+			<div class="control-row">
+				<label>Glow</label>
+				<input type="range" id="glowSlider" min="0" max="30" step="1" value="10">
+				<span class="value-display" id="glowVal">10</span>
+			</div>
+			<div class="control-row">
+				<label>Connect</label>
+				<button class="toggle-btn" id="connectToggle">ON</button>
+				<label>Grid</label>
+				<button class="toggle-btn" id="gridToggle">OFF</button>
+			</div>
+		</div>
+
+		<!-- Actions -->
+		<div class="section-header" data-section="actions">&#9654; ACTIONS</div>
+		<div class="section-body" id="section-actions">
+			<div class="btn-row">
+				<button id="clearBtn">Clear All</button>
+				<button id="randomBtn">Randomize</button>
+			</div>
+		</div>
+
+		<div class="stats-bar">
+			<span>FPS: <span id="fpsText">60</span></span>
+			<span id="pauseText"></span>
+		</div>
+
+		<div class="shortcut-hint">Space:Pause C:Clear M:Mode T:Theme</div>
+	</div>
+
+	<script>
+	// ===== CONFIGURATION =====
+
+	const THEMES = {
+		cyberpunk: { hueRange: [0, 360], bg: '#0a0a0a', accent: '#00ff88', secondary: '#ff00ff', bgTint: [10, 10, 10] },
+		fire:      { hueRange: [0, 60],  bg: '#0a0500', accent: '#ff6600', secondary: '#ffcc00', bgTint: [10, 5, 0] },
+		ocean:     { hueRange: [180, 220], bg: '#000a0a', accent: '#00ccff', secondary: '#0066ff', bgTint: [0, 10, 10] },
+		aurora:    { hueRange: [100, 300], bg: '#050a05', accent: '#66ff66', secondary: '#cc66ff', bgTint: [5, 10, 5] },
+		rainbow:   { hueRange: [0, 360], bg: '#0a0a0a', accent: '#ff6688', secondary: '#6688ff', bgTint: [10, 10, 10] },
+		mono:      { hueRange: [160, 160], bg: '#0a0a0a', accent: '#00ff88', secondary: '#88ffcc', bgTint: [10, 10, 10] }
+	};
+
+	const MODES = ['gravity', 'repel', 'orbit', 'swarm', 'explosion', 'vortex', 'flowfield', 'fireworks'];
+
+	const config = {
+		maxParticles: 1000,
+		particleSize: 3,
+		speedMult: 1,
+		spawnRate: 3,
+		gravityStrength: 0.3,
+		damping: 0.98,
+		interactionRange: 100,
+		glowIntensity: 10,
+		showConnections: true,
+		showGrid: false,
+		connectionDist: 80,
+		theme: 'cyberpunk',
+		shape: 'circle',
+		mode: 'gravity',
+		paused: false
+	};
+
+	const state = {
+		particles: [],
+		mouseX: 0,
+		mouseY: 0,
+		mouseDown: false,
+		fps: 60,
+		frameCount: 0,
+		lastFpsTime: performance.now(),
+		time: 0,
+		spatialGrid: {},
+		canvasWidth: 0,
+		canvasHeight: 0,
+		dpr: 1,
+		hasPointer: false
+	};
+
+	// ...existing code from particle-playground.html continues...
